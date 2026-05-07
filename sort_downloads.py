@@ -23,7 +23,7 @@ from watchdog.events import FileSystemEventHandler
 # ---------------------------------------------------------------------------
 
 # Path to the folder we want to watch. ~ expands to C:\Users\<you>
-DOWNLOADS_DIR = Path("/mnt/c/Users/saif3/Downloads")
+DOWNLOADS_DIR = Path("/mnt/c/Users/YOUR_USERNAME/Downloads")
 
 # Maps a subfolder name → list of file extensions that belong there.
 # Add or remove entries to customise your own categories.

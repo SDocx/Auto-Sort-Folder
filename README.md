@@ -50,10 +50,10 @@ python sort_downloads.py
 The watcher runs until you press **Ctrl+C**.
 
 ```
-2026-05-07 00:04:00  [INFO]  Watching  /mnt/c/Users/saif3/Downloads
+2026-05-07 00:04:00  [INFO]  Watching  /mnt/c/Users/YOUR_USERNAME/Downloads
 2026-05-07 00:04:00  [INFO]  Press Ctrl+C to stop.
 
-2026-05-07 00:04:00  [INFO]  Sorting existing files in /mnt/c/Users/saif3/Downloads ...
+2026-05-07 00:04:00  [INFO]  Sorting existing files in /mnt/c/Users/YOUR_USERNAME/Downloads ...
 2026-05-07 00:04:01  [INFO]  Moved  invoice_april.pdf          →  Documents
 2026-05-07 00:04:01  [INFO]  Moved  holiday_photo.jpg          →  Images
 2026-05-07 00:04:01  [INFO]  Done sorting existing files.
@@ -67,7 +67,7 @@ Open `sort_downloads.py` and edit the constants near the top of the file.
 
 **Change the watched folder:**
 ```python
-DOWNLOADS_DIR = Path("/mnt/c/Users/saif3/Downloads")
+DOWNLOADS_DIR = Path("/mnt/c/Users/YOUR_USERNAME/Downloads")
 ```
 
 **Add a new category or extension:**
