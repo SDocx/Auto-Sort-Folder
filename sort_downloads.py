@@ -7,6 +7,8 @@ Requirements:
 """
 
 # --- Standard library imports ---
+import hashlib
+import json
 import time          # Used to keep the script running in a loop
 import shutil        # Provides high-level file operations (move, copy)
 import logging       # Prints timestamped status messages to the console
@@ -22,27 +24,21 @@ from watchdog.events import FileSystemEventHandler
 # CONFIGURATION
 # ---------------------------------------------------------------------------
 
-# Path to the folder we want to watch. ~ expands to C:\Users\<you>
-DOWNLOADS_DIR = Path("/mnt/c/Users/YOUR_USERNAME/Downloads")
+CONFIG_FILE = Path(__file__).parent / "config.json"
 
-# Maps a subfolder name → list of file extensions that belong there.
-# Add or remove entries to customise your own categories.
-FILE_TYPES = {
-    "Images":     [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg",
-                   ".webp", ".ico", ".tiff", ".heic"],
-    "Videos":     [".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv",
-                   ".webm", ".m4v"],
-    "Audio":      [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".wma"],
-    "Documents":  [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt",
-                   ".pptx", ".txt", ".rtf", ".odt", ".csv"],
-    "Archives":   [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz"],
-    "Code":       [".py", ".js", ".ts", ".html", ".css", ".json", ".xml",
-                   ".yaml", ".yml", ".sh", ".bat", ".java", ".cpp", ".c",
-                   ".h", ".rs", ".go", ".rb", ".php", ".sql"],
-    "Executables":[".exe", ".msi", ".dmg", ".pkg", ".deb", ".apk"],
-    "Fonts":      [".ttf", ".otf", ".woff", ".woff2"],
-    "Ebooks":     [".epub", ".mobi", ".azw", ".azw3"],
-}
+def load_config() -> dict:
+    if not CONFIG_FILE.exists():
+        raise FileNotFoundError(
+            f"Config file not found: {CONFIG_FILE}\n"
+            "Create config.json next to this script to get started."
+        )
+    with CONFIG_FILE.open(encoding="utf-8") as f:
+        return json.load(f)
+
+_config       = load_config()
+DOWNLOADS_DIR = Path(_config["downloads_dir"])
+MISC_FOLDER   = _config.get("misc_folder", "Misc")
+FILE_TYPES    = _config["categories"]
 
 # Build a reverse lookup: extension → folder name.
 # e.g. {".jpg": "Images", ".mp4": "Videos", ...}
@@ -53,8 +49,8 @@ EXT_TO_FOLDER = {
     for ext in exts
 }
 
-# Files whose extension is not in EXT_TO_FOLDER go here.
-MISC_FOLDER = "Misc"
+# Log file written next to this script.
+LOG_FILE = Path(__file__).parent / "moves.log"
 
 # Configure logging so every message shows date, time, and severity level.
 logging.basicConfig(
@@ -64,10 +60,37 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# File handler — appends every move record to moves.log
+_file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+_file_handler.setLevel(logging.INFO)
+_file_handler.setFormatter(logging.Formatter(
+    "%(asctime)s  [%(levelname)s]  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+))
+log.addHandler(_file_handler)
+
 
 # ---------------------------------------------------------------------------
 # SORTING LOGIC
 # ---------------------------------------------------------------------------
+
+def file_hash(path: Path, chunk: int = 65536) -> str:
+    """Return the SHA-256 digest of a file, reading in chunks to handle large files."""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while data := f.read(chunk):
+            h.update(data)
+    return h.hexdigest()
+
+
+def is_exact_duplicate(src: Path, dst: Path) -> bool:
+    """True when dst exists and has identical content to src."""
+    if not dst.exists():
+        return False
+    if src.stat().st_size != dst.stat().st_size:
+        return False
+    return file_hash(src) == file_hash(dst)
+
 
 def get_destination(file_path: Path) -> Path:
     """Return the target subfolder Path for a given file."""
@@ -120,12 +143,21 @@ def sort_file(file_path: Path) -> None:
     # exist_ok=True means no error if it's already there.
     dest_folder.mkdir(parents=True, exist_ok=True)
 
-    dest_file = resolve_conflict(dest_folder / file_path.name)
+    candidate = dest_folder / file_path.name
+
+    if is_exact_duplicate(file_path, candidate):
+        log.info("DUPLICATE  %s  (identical file already in %s — skipped)", file_path.name, dest_folder.name)
+        return
+
+    dest_file = resolve_conflict(candidate)
 
     try:
         # shutil.move works across drives; Path.rename() doesn't always.
         shutil.move(str(file_path), str(dest_file))
-        log.info("Moved  %-40s  →  %s", file_path.name, dest_file.parent.name)
+        if dest_file.name != file_path.name:
+            log.info("RENAMED+MOVED  %s  →  %s  (name conflict)", file_path, dest_file)
+        else:
+            log.info("MOVED  %s  →  %s", file_path, dest_file)
     except PermissionError:
         # The file may still be locked (e.g. a download in progress).
         # We'll get another event when it's fully written, so just skip it.
