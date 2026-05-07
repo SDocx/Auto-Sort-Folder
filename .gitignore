@@ -1,6 +1,11 @@
 # Runtime output
 moves.log
 
+# PyInstaller build output
+dist/
+build/
+*.spec
+
 # Python cache
 __pycache__/
 *.py[cod]
