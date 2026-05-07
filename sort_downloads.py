@@ -9,6 +9,9 @@ Requirements:
 # --- Standard library imports ---
 import hashlib
 import json
+import os
+import platform
+import sys
 import time          # Used to keep the script running in a loop
 import shutil        # Provides high-level file operations (move, copy)
 import logging       # Prints timestamped status messages to the console
@@ -24,26 +27,55 @@ from watchdog.events import FileSystemEventHandler
 # CONFIGURATION
 # ---------------------------------------------------------------------------
 
-CONFIG_FILE = Path(__file__).parent / "config.json"
+def _app_dir() -> Path:
+    """Folder next to the EXE when bundled by PyInstaller, or next to this script in dev."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).parent
+
+CONFIG_FILE = _app_dir() / "config.json"
+
+_DEFAULT_CONFIG = {
+    "downloads_dir": "auto",
+    "misc_folder": "Misc",
+    "categories": {
+        "Images":      [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico", ".tiff", ".heic"],
+        "Videos":      [".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm", ".m4v"],
+        "Audio":       [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".wma"],
+        "Documents":   [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".rtf", ".odt", ".csv"],
+        "Archives":    [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz"],
+        "Code":        [".py", ".js", ".ts", ".html", ".css", ".json", ".xml", ".yaml", ".yml", ".sh", ".bat", ".java", ".cpp", ".c", ".h", ".rs", ".go", ".rb", ".php", ".sql"],
+        "Executables": [".exe", ".msi", ".dmg", ".pkg", ".deb", ".apk"],
+        "Fonts":       [".ttf", ".otf", ".woff", ".woff2"],
+        "Ebooks":      [".epub", ".mobi", ".azw", ".azw3"],
+    },
+}
 
 def load_config() -> dict:
     if not CONFIG_FILE.exists():
-        raise FileNotFoundError(
-            f"Config file not found: {CONFIG_FILE}\n"
-            "Create config.json next to this script to get started."
-        )
+        CONFIG_FILE.write_text(json.dumps(_DEFAULT_CONFIG, indent=2), encoding="utf-8")
     with CONFIG_FILE.open(encoding="utf-8") as f:
         return json.load(f)
 
 def _resolve_downloads_dir(configured: str) -> Path:
     """
-    Return the configured path if it exists.
-    If not, scan /mnt/c/Users/ to find the real Windows Downloads folder
-    so the script works out-of-the-box without editing config.json.
+    Auto-detect the Downloads folder when configured is 'auto' or the path doesn't exist.
+    Works on native Windows and WSL.
     """
-    path = Path(configured)
-    if path.exists():
-        return path
+    if configured != "auto":
+        path = Path(configured)
+        if path.exists():
+            return path
+
+    # Native Windows EXE — use the USERPROFILE environment variable
+    if platform.system() == "Windows":
+        userprofile = os.environ.get("USERPROFILE", "")
+        if userprofile:
+            candidate = Path(userprofile) / "Downloads"
+            if candidate.exists():
+                return candidate
+
+    # WSL / Linux — scan /mnt/c/Users/
     wsl_users = Path("/mnt/c/Users")
     if wsl_users.exists():
         skip = {"All Users", "Default", "Default User", "Public"}
@@ -52,7 +84,13 @@ def _resolve_downloads_dir(configured: str) -> Path:
                 candidate = entry / "Downloads"
                 if candidate.exists():
                     return candidate
-    return path  # fall back — will produce a clear FileNotFoundError at runtime
+
+    if configured != "auto":
+        return Path(configured)  # fall back — will raise a clear FileNotFoundError at runtime
+    raise FileNotFoundError(
+        "Could not find your Downloads folder automatically.\n"
+        "Set 'downloads_dir' in config.json to the full path."
+    )
 
 _config       = load_config()
 DOWNLOADS_DIR = _resolve_downloads_dir(_config["downloads_dir"])
@@ -68,8 +106,8 @@ EXT_TO_FOLDER = {
     for ext in exts
 }
 
-# Log file written next to this script.
-LOG_FILE = Path(__file__).parent / "moves.log"
+# Log file written next to the EXE (or script in dev mode).
+LOG_FILE = _app_dir() / "moves.log"
 
 # Configure logging so every message shows date, time, and severity level.
 logging.basicConfig(

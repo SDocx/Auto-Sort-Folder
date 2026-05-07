@@ -4,7 +4,7 @@ pip install pyinstaller watchdog
 
 echo.
 echo Building AutoSortFolder.exe...
-pyinstaller --onefile --windowed --name AutoSortFolder --add-data "config.json;." gui.py
+pyinstaller --onefile --windowed --name AutoSortFolder gui.py
 
 echo.
 if exist dist\AutoSortFolder.exe (

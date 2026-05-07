@@ -27,7 +27,6 @@ jobs:
           --onefile
           --windowed
           --name AutoSortFolder
-          --add-data "config.json;."
           gui.py
 
       - name: Upload EXE artifact
