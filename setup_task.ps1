@@ -3,8 +3,8 @@
 #
 # HOW TO RUN:
 #   1. Open PowerShell on Windows (not WSL) — no admin needed.
-#   2. Navigate to this folder:
-#        cd "\\wsl$\Ubuntu\home\sdocx\Auto-Sort-Folder"
+#   2. Navigate to this folder (replace YOUR_WSL_DISTRO and YOUR_WSL_USERNAME):
+#        cd "\\wsl$\YOUR_WSL_DISTRO\home\YOUR_WSL_USERNAME\Auto-Sort-Folder"
 #   3. Allow the script to run (one-time):
 #        Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 #   4. Run:
@@ -14,8 +14,10 @@
 #   Unregister-ScheduledTask -TaskName "AutoSortFolder" -Confirm:$false
 
 $TaskName   = "AutoSortFolder"
-$ScriptPath = "/home/sdocx/Auto-Sort-Folder/gui.py"
-$WslUser    = "sdocx"
+
+# Auto-detect the WSL username so this works on any machine
+$WslUser    = (wsl whoami).Trim()
+$ScriptPath = "/home/$WslUser/Auto-Sort-Folder/gui.py"
 
 # ── Action: call wsl.exe which invokes Python inside your default distro ──
 $action = New-ScheduledTaskAction `

@@ -137,7 +137,7 @@ The EXE will be created at `dist\AutoSortFolder.exe`.
 Open **Windows PowerShell** (not WSL) and run once:
 
 ```powershell
-cd "\\wsl$\Ubuntu\home\sdocx\Auto-Sort-Folder"
+cd "\\wsl$\YOUR_WSL_DISTRO\home\YOUR_WSL_USERNAME\Auto-Sort-Folder"
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 .\setup_task.ps1
 ```

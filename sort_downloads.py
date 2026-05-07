@@ -35,8 +35,27 @@ def load_config() -> dict:
     with CONFIG_FILE.open(encoding="utf-8") as f:
         return json.load(f)
 
+def _resolve_downloads_dir(configured: str) -> Path:
+    """
+    Return the configured path if it exists.
+    If not, scan /mnt/c/Users/ to find the real Windows Downloads folder
+    so the script works out-of-the-box without editing config.json.
+    """
+    path = Path(configured)
+    if path.exists():
+        return path
+    wsl_users = Path("/mnt/c/Users")
+    if wsl_users.exists():
+        skip = {"All Users", "Default", "Default User", "Public"}
+        for entry in sorted(wsl_users.iterdir()):
+            if entry.is_dir() and entry.name not in skip:
+                candidate = entry / "Downloads"
+                if candidate.exists():
+                    return candidate
+    return path  # fall back — will produce a clear FileNotFoundError at runtime
+
 _config       = load_config()
-DOWNLOADS_DIR = Path(_config["downloads_dir"])
+DOWNLOADS_DIR = _resolve_downloads_dir(_config["downloads_dir"])
 MISC_FOLDER   = _config.get("misc_folder", "Misc")
 FILE_TYPES    = _config["categories"]
 
