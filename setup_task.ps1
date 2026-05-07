@@ -15,6 +15,7 @@
 
 $TaskName   = "AutoSortFolder"
 $ScriptPath = "/home/sdocx/Auto-Sort-Folder/gui.py"
+$WslUser    = "sdocx"
 
 # ── Action: call wsl.exe which invokes Python inside your default distro ──
 $action = New-ScheduledTaskAction `
